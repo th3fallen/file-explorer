@@ -1,24 +1,56 @@
+/*
+ * File Explorer Implementation
+ * 
+ * Design Decisions:
+ * 1. Functional Approach:
+ *    - Chose a functional programming style over class-based for better testability
+ *    - Pure functions are easier to test and reason about
+ *    - State is managed through a simple state object rather than class properties
+ * 
+ * 2. State Management:
+ *    - Internal state management was chosen for simplicity
+ *    - Trade-off: URL-based state would enable shareable links but add complexity
+ *    - expandedFolders uses a Set for O(1) lookup performance
+ * 
+ * 3. DOM Manipulation:
+ *    - Direct DOM manipulation used instead of virtual DOM for simplicity
+ *    - Trade-off: Less optimal for complex UI updates but simpler implementation
+ *    - Separated DOM creation functions for better maintainability
+ * 
+ * 4. API Integration:
+ *    - Simple fetch-based API calls without caching
+ *    - Known limitation: Duplicate calls between tree and list views
+ *    - Trade-off: Accepted for code challenge scope, would need optimization for production
+ * 
+ * 5. Event Handling:
+ *    - Event delegation not implemented for simplicity
+ *    - Trade-off: More event listeners but clearer code structure
+ */
+
+// Core interfaces defining the data structures
 export interface ITreeNode {
     type: 'file' | 'folder';
     name: string;
     modified: Date;
-    size?: number;
+    size?: number;  // Optional as folders don't have a size
 }
 
+// Props interface for creating DOM elements, following a React-like pattern
 interface IElementProps {
     className?: string;
     textContent?: string;
     style?: string;
 }
 
+// State management interface - kept minimal for simplicity
 interface ExplorerState {
-    expandedFolders: Set<string>;
-    currentPath: string;
-    treeView: HTMLElement;
-    listView: HTMLElement;
+    expandedFolders: Set<string>;  // Using Set for O(1) lookup of expanded state
+    currentPath: string;           // Current directory path being viewed
+    treeView: HTMLElement;         // Reference to tree view DOM element
+    listView: HTMLElement;         // Reference to list view DOM element
 }
 
-// Pure utility functions
+// Pure utility functions - these have no side effects and are easily testable
 export const buildPath = (name: string, parentPath: string): string => {
     return parentPath === '/' ? `/${name}` : `${parentPath}/${name}`;
 };
@@ -36,7 +68,7 @@ export const formatSize = (size: number): string => {
     return `${(size / Math.pow(1024, index)).toFixed(index ? 1 : 0)}${units[index]}`;
 };
 
-// DOM manipulation functions
+// DOM manipulation functions - separated for better organization and testability
 const createElement = (tag: string, props: IElementProps = {}): HTMLElement => {
     const element = document.createElement(tag);
     if (props.className) element.className = props.className;
@@ -45,6 +77,7 @@ const createElement = (tag: string, props: IElementProps = {}): HTMLElement => {
     return element;
 };
 
+// Icon creation functions - abstracted for consistency and reusability
 const createFolderIcon = (isExpanded = false): HTMLElement => {
     const icon = createElement('span', { className: 'folder-icon' });
     if (isExpanded) icon.classList.add('open');
@@ -59,13 +92,22 @@ const createIcon = (type: 'file' | 'folder', isExpanded = false): HTMLElement =>
     return type === 'folder' ? createFolderIcon(isExpanded) : createFileIcon();
 };
 
-// API functions
+// API functions - kept simple for the code challenge
+// Note: In a production environment, we'd want to add:
+// - Error handling
+// - Request caching
+// - Request cancellation
+// - Loading states
 const fetchFolderContents = async (path: string): Promise<ITreeNode[]> => {
     const response = await fetch(`/api/files${path}`);
     return response.json();
 };
 
-// State management
+// State management - simple implementation for the code challenge
+// In a larger application, consider:
+// - Using a proper state management library
+// - Implementing undo/redo functionality
+// - Adding persistence
 const createInitialState = (treeView: HTMLElement, listView: HTMLElement): ExplorerState => ({
     expandedFolders: new Set(['/']) as Set<string>,
     currentPath: '/',
@@ -73,7 +115,7 @@ const createInitialState = (treeView: HTMLElement, listView: HTMLElement): Explo
     listView
 });
 
-// UI update functions
+// UI update functions - handle DOM updates based on state changes
 const createListRow = (
     icon: HTMLElement,
     text: string,
@@ -95,9 +137,12 @@ const createListRow = (
     return row;
 };
 
+// List view update - handles both file and folder display
+// Note: Could be optimized to only update changed items
 const updateListView = (state: ExplorerState, data: ITreeNode[]): void => {
     const fragment = document.createDocumentFragment();
 
+    // Parent directory navigation - improves UX by allowing easy upward navigation
     if (state.currentPath !== '/') {
         const parentIcon = createFolderIcon();
         const parentRow = createListRow(
@@ -133,6 +178,8 @@ const updateListView = (state: ExplorerState, data: ITreeNode[]): void => {
     state.listView.appendChild(fragment);
 };
 
+// Tree view update - handles the hierarchical folder structure
+// Note: Uses recursion for simplicity, might need optimization for deep structures
 const updateTreeView = (
     state: ExplorerState,
     data: ITreeNode[],
@@ -144,6 +191,7 @@ const updateTreeView = (
 
     const fragment = document.createDocumentFragment();
 
+    // Root folder special case - always visible and expanded
     if (level === 0) {
         parentElement.innerHTML = '';
         const rootIcon = createFolderIcon(true);
@@ -168,6 +216,7 @@ const updateTreeView = (
         parentPath = '/';
     }
 
+    // Build tree structure recursively
     data.forEach(item => {
         const itemPath = buildPath(item.name, parentPath);
         const div = createElement('div', {
@@ -197,6 +246,7 @@ const updateTreeView = (
     parentElement.appendChild(fragment);
 };
 
+// Updates folder expansion icons in the list view for consistency
 const updateListViewExpansion = (state: ExplorerState): void => {
     state.listView.querySelectorAll('.list-item').forEach(item => {
         const nameCell = item.querySelector('td');
@@ -210,7 +260,7 @@ const updateListViewExpansion = (state: ExplorerState): void => {
     });
 };
 
-// Event handlers
+// Event handlers - manage user interactions
 const removeExpandedFolder = (state: ExplorerState, path: string): void => {
     for (const expandedPath of state.expandedFolders) {
         if (expandedPath === path || expandedPath.startsWith(path + '/')) {
@@ -219,6 +269,7 @@ const removeExpandedFolder = (state: ExplorerState, path: string): void => {
     }
 };
 
+// Handles folder expansion toggling with optional forced state
 const toggleFolderExpansion = async (state: ExplorerState, path: string, forceState?: boolean): Promise<void> => {
     if (path === '/') return;
 
@@ -250,6 +301,7 @@ const toggleFolderExpansion = async (state: ExplorerState, path: string, forceSt
     updateListViewExpansion(state);
 };
 
+// Coordinates updates between tree and list views when selecting folders
 const handleFolderSelect = async (state: ExplorerState, path: string, source: 'tree' | 'list'): Promise<void> => {
     const previousPath = state.currentPath;
     const isSamePath = previousPath === path;
@@ -272,6 +324,7 @@ const handleFolderSelect = async (state: ExplorerState, path: string, source: 't
     updateSelection(state, path);
 };
 
+// Helper function to expand tree to show a specific path
 const expandTreeToPath = async (state: ExplorerState, path: string): Promise<void> => {
     const pathParts = path.split('/').filter(Boolean);
     let currentPath = '';
@@ -282,6 +335,7 @@ const expandTreeToPath = async (state: ExplorerState, path: string): Promise<voi
     }
 };
 
+// Updates visual selection state in both views
 const updateSelection = (state: ExplorerState, path: string): void => {
     state.treeView.querySelectorAll('.tree-item.selected').forEach(item => {
         item.classList.remove('selected');
@@ -304,7 +358,7 @@ const updateSelection = (state: ExplorerState, path: string): void => {
     });
 };
 
-// Initialize
+// Main factory function - creates a new file explorer instance
 export const createFileExplorer = (treeViewId: string, listViewId: string) => {
     const treeView = document.getElementById(treeViewId);
     const listView = document.getElementById(listViewId);
