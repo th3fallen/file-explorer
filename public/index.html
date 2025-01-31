@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cribl File System Explorer</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div class="explorer-container">
+        <div class="tree-view" id="treeView">
+            <!-- Directory tree will be rendered here -->
+        </div>
+        <div class="list-view" id="listView">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Name</th>
+                        <th>Modified</th>
+                        <th>Size</th>
+                    </tr>
+                </thead>
+                <tbody id="fileList">
+                    <!-- File list will be rendered here -->
+                </tbody>
+            </table>
+        </div>
+    </div>
+    <script type="module" src="js/main.js"></script>
+</body>
+</html>

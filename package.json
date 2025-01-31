@@ -1,0 +1,29 @@
+{
+  "name": "cribl-explorer",
+  "version": "1.0.0",
+  "description": "File system explorer UI component",
+  "main": "server.js",
+  "scripts": {
+    "test": "jest",
+    "start": "npm run build && node server.js",
+    "build": "tsc",
+    "watch": "tsc -w"
+  },
+  "devDependencies": {
+    "@types/jest": "^29.5.0",
+    "jest": "^29.5.0",
+    "jest-environment-jsdom": "^29.7.0",
+    "ts-jest": "^29.1.0",
+    "typescript": "^5.0.0",
+    "@types/node": "^20.11.0",
+    "express": "^4.18.2"
+  },
+  "jest": {
+    "preset": "ts-jest",
+    "testEnvironment": "jsdom",
+    "moduleFileExtensions": ["ts", "tsx", "js", "jsx", "json", "node"],
+    "transform": {
+      "^.+\\.(ts|tsx)$": "ts-jest"
+    }
+  }
+}
